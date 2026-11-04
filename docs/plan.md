@@ -104,13 +104,13 @@ duplicate publication. Test on a disposable repo and a real Cimian test client.
 | ------------------ | ------------------------------------------------------------------- | ---------------------------------------------------- |
 | Initial deployment | Self-hosted, existing filesystem repo                               | A hosted-first product goal                          |
 | Frontend           | React + TypeScript + Vite, same as Munki Web Studio for hosting     | A shared design system choice                        |
-| Backend | Python, decided 2026-11-04 ([backend](backend.md)); framework open | — |
+| Backend | Python with FastAPI, decided 2026-11-04 ([backend](backend.md)) | — |
 | Runtime topology   | One writer per repo; optional Windows worker                        | Need for multiple writers or instances               |
 | State              | SQLite on local durable disk for a single-host pilot                | Shared control plane needs PostgreSQL                |
 | Windows jobs       | Optional Windows worker; unavailable capabilities explicit          | Cross-platform builds of `makecatalogs`              |
 | Git model          | Optional repository integration                                     | Team requires PR-only metadata changes               |
 | Identity           | OIDC, Entra ID first candidate                                      | Existing self-hosted identity requirements           |
-| License/visibility | Private exploration; MIT likely, to match Cimian                    | Decision to publish and accept contributions         |
+| License/visibility | MIT, public, decided 2026-11-04 | — |
 
 ## Next implementation slice
 
