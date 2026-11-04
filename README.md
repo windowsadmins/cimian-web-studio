@@ -24,6 +24,8 @@ repository YAML remains authoritative.
 - [Design direction and interaction specification](docs/design.md)
 - [Backend language and why](docs/backend.md)
 - [Standalone and hosted](docs/hosting.md)
+- [MCP server for AI agents](docs/mcp.md)
+- [Command line](docs/cli.md)
 - [Reference research](docs/research.md)
 - [Interactive workspace study](docs/design/workspace.html)
 
