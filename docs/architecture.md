@@ -50,7 +50,7 @@ and a `fact`/`operator`/`value` mapping.
 
 ## Backend
 
-Python is recommended; the reasons and the test behind them are in
+Python, decided 2026-11-04; the reasons and the test behind them are in
 [backend](backend.md). Cimian's own .NET YAML code was evaluated for reuse and
 does not round-trip, so it serves as a reference for field meanings only.
 
