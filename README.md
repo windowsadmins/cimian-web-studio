@@ -143,6 +143,25 @@ read, then start the worker:
 cwsctl worker run --url https://studio.example.org --id win-1 --token-file C:\ProgramData\cwsctl\win-1.token
 ```
 
+### Importing packages
+
+Import a package (Packages, for Editors) uploads an installer (.msi, .exe or .nupkg) in 8 MB chunks
+into the studio's private staging folder, outside the repository. A dropped
+connection resumes from the last byte that arrived, and the whole file must
+match the SHA-256 the browser computed before it is used. The browser takes
+files up to 2 GB. The worker then runs `makepkginfo.exe` on its own copy, which it
+checks against the same hash. makepkginfo reads the installer metadata and runs
+nothing from it. The studio accepts the resulting pkginfo only if its
+`installer.hash` is the upload's hash. It sets `installer.location`,
+and opens a draft that adds both the pkginfo (`pkgsinfo/<folder>/<name>-<version>.yaml`)
+and the installer (`pkgs/<folder>/<file>`). Nothing reaches the repository
+until that draft is reviewed and saved. The save copies the installer from
+staging, checks its hash again, and writes it with the pkginfo in the same
+journalled save, so a crash leaves both or neither. Existing files are never
+overwritten. A pkginfo name that is taken gets a `__1` suffix,
+and an installer whose path is taken is refused. `cimiimport` is
+not used, because it writes to the repository itself.
+
 ### Catalogs
 
 Catalogs shows each catalog's contents and where it has fallen behind the
