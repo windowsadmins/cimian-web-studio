@@ -68,6 +68,31 @@ polling when it cannot hold a stream open.
 Jobs that need tools the studio does not have, such as Cimian's own command-line
 tools, are refused with the capability they need instead of waiting in a queue.
 
+### Workers
+
+Jobs that need Cimian's own tools run on a worker: `cwsctl worker run` on a
+Windows machine with Cimian installed. The worker connects out to the studio,
+reports its Windows version and the version of each tool it finds, and runs
+only `makecatalogs.exe` from `C:\Program Files\Cimian`, with fixed arguments,
+in a fresh staging folder per job. It sends back the output files with their
+SHA-256 hashes, and the studio checks every hash before it records a result.
+Settings shows each worker, its tools and what it can run; when no worker can
+run a job, Activity says which tool is needed.
+
+Make a token for the worker. The command prints the token, and the lines to add
+to the studio's config file:
+
+```powershell
+cwsctl worker token --id win-1
+```
+
+Save the token on the Windows machine in a file only the worker's account can
+read, then start the worker:
+
+```powershell
+cwsctl worker run --url https://studio.example.org --id win-1 --token-file C:\ProgramData\cwsctl\win-1.token
+```
+
 ## Sign-in
 
 Without an `[auth]` table the studio is single-user and answers only on this
