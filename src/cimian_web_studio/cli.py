@@ -42,7 +42,7 @@ def serve(
 
     Without sign-in configured, the studio only listens on this machine. To bind
     another address without sign-in, which a container must do, set
-    MUNKI_WEB_STUDIO_ALLOW_UNAUTHENTICATED=1 and publish the port on loopback
+    CIMIAN_WEB_STUDIO_ALLOW_UNAUTHENTICATED=1 and publish the port on loopback
     only, as deploy/compose.yaml does.
     """
     import ipaddress

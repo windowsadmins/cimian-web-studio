@@ -9,7 +9,7 @@ writable = false
 state_dir = "/var/lib/studio"
 
 [repositories.publish]
-target = "/srv/munki-published"   # clients are served target/current
+target = "/srv/cimian-published"   # clients are served target/current
 keep = 5
 hardlink = false
 
