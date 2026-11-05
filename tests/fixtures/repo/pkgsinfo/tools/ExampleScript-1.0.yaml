@@ -1,0 +1,11 @@
+name: ExampleScript
+version: "1.0"
+category: Utilities
+catalogs:
+  - testing
+installer:
+  type: ps1
+  location: pkgs/tools/ExampleScript-1.0.ps1
+installcheck_script: |
+  if (Test-Path "C:\ProgramData\Example\done.txt") { exit 1 }
+  exit 0

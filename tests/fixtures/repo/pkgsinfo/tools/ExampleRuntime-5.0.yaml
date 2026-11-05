@@ -1,0 +1,11 @@
+name: ExampleRuntime
+version: "5.0"
+category: Utilities
+catalogs:
+  - testing
+  - production
+installer:
+  type: exe
+  location: pkgs/tools/ExampleRuntime-5.0.exe
+  hash: 0000000000000000000000000000000000000000000000000000000000000000
+  arguments: ["/quiet"]

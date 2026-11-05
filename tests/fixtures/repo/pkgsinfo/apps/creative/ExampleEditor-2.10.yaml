@@ -1,0 +1,44 @@
+# Hand-maintained pkginfo; comments must survive edits.
+name: ExampleEditor
+display_name: Example Editor
+version: "2.10"   # quoted: must stay a string, not 2.1
+category: Creative
+developer: Example Co
+description: Invented editor package for tests.
+
+catalogs:
+  - testing
+  - production
+
+requires:
+  - ExampleRuntime
+
+installer:
+  type: msi
+  location: pkgs/apps/creative/ExampleEditor-2.10.msi
+  hash: 0000000000000000000000000000000000000000000000000000000000000000
+  arguments:
+    - /qn
+    - /norestart
+
+installs:
+  - type: msi
+    product_code: "{00000000-0000-0000-0000-000000000001}"
+
+uninstaller:
+  - type: msi
+    product_code: "{00000000-0000-0000-0000-000000000001}"
+
+supported_architectures: [x64, arm64]
+minimum_os_version: 10.0.19045
+blocking_applications:
+  - editor.exe
+
+preinstall_script: |
+  # PowerShell, runs before install
+  $path = "$env:ProgramData\Example"
+  if (-not (Test-Path $path)) { New-Item -ItemType Directory -Path $path | Out-Null }
+
+installed_size: 9007199254740993
+x_unknown_site_key:
+  nested: [1, 2.5, three]

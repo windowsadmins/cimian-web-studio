@@ -1,0 +1,8 @@
+name: ExampleBrowser
+version: "136.0"
+catalogs: [testing]
+installer:
+  type: exe
+  location: pkgs/apps/browsers/ExampleBrowser-136.0.exe
+  hash: 0000000000000000000000000000000000000000000000000000000000000000
+notes: Duplicate on purpose.

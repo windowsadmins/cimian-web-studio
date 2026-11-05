@@ -1,0 +1,11 @@
+name: ExampleEditorPlugin
+version: "1.0"
+category: Creative
+catalogs:
+  - testing
+update_for:
+  - ExampleEditor
+installer:
+  type: nupkg
+  location: pkgs/apps/creative/ExampleEditorPlugin-1.0.nupkg
+  hash: 0000000000000000000000000000000000000000000000000000000000000000
