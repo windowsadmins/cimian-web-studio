@@ -283,7 +283,10 @@ def test_staging_refuses_unexpected_inputs(tmp_path: Path, name: str, kind: byte
 
 
 @pytest.mark.skipif(not REAL_MAKECATALOGS.is_file(), reason="needs Cimian's makecatalogs")
-def test_real_makecatalogs_on_windows(studio: TestClient) -> None:
+def test_real_makecatalogs_on_windows(studio: TestClient, root: Path) -> None:
+    # makecatalogs 2.0 exits 1 on any unparsable pkgsinfo, so drop the fixture's broken ones.
+    shutil.rmtree(root / "pkgsinfo" / "invalid")
+    studio.post("/api/repositories/fixture/rescan").raise_for_status()
     tools = Tools.probe()
     assert "makecatalogs" in tools.versions
     worker = worker_for(studio, tools)
