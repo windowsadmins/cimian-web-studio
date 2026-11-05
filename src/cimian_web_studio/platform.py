@@ -14,6 +14,9 @@ SUFFIXES: frozenset[str] | None = frozenset({".yaml", ".yml"})
 IGNORED_NAMES = frozenset({".DS_Store", ".gitkeep", "Thumbs.db"})
 
 
+# Folders a Cimian client downloads, which publishing copies into a release.
+PUBLISHED_FOLDERS = ("catalogs", "manifests", "pkgs", "icons")
+
 # Workers. A Windows worker runs these Cimian tools and nothing else, from these paths.
 WORKER_PLATFORM = "Windows"
 WORKER_TOOLS = {
