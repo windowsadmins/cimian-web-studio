@@ -2,9 +2,12 @@
 that adds the pkginfo and the installer together."""
 
 import hashlib
+import io
 import shutil
+import subprocess
 import sys
 import time
+import zipfile
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, cast
@@ -16,6 +19,7 @@ from fastapi.testclient import TestClient
 from tests.fixtures.build_repo_fixture import REPO
 from tests.unit.test_worker import TOKEN, posix_only
 
+from cimian_web_studio import catalogs, platform
 from cimian_web_studio.app import create_app
 from cimian_web_studio.changes.apply import commit, recover
 from cimian_web_studio.codec import load
@@ -303,6 +307,80 @@ def test_a_save_cut_short_after_the_installer_is_finished_on_restart(
     assert load((root / "pkgsinfo/apps/Example-1.2.3.yaml").read_bytes()).data["name"] == "Example"
 
 
+def test_the_installer_itself_is_not_kept_as_an_installs_check() -> None:
+    pkginfo: dict[str, Any] = {
+        "installer": {"type": "exe", "location": "Setup.exe", "hash": "AB" * 32},
+        "installs": [
+            {"type": "file", "path": r"C:\Temp\staging\upload\SETUP.exe", "md5checksum": "0"},
+            {"type": "file", "path": r"C:\Program Files\Example\example.exe"},
+        ],
+    }
+    platform.prepare_import(pkginfo, "ab" * 32, "apps/Setup.exe")
+    assert pkginfo["installer"]["location"] == "apps/Setup.exe"
+    kept = {"type": "file", "path": r"C:\Program Files\Example\example.exe"}
+    assert pkginfo["installs"] == [kept]
+    only_itself: dict[str, Any] = {
+        "installer": {"hash": "ab" * 32},
+        "installs": [{"type": "file", "path": "/srv/staging/Setup.exe"}],
+    }
+    platform.prepare_import(only_itself, "ab" * 32, "Setup.exe")
+    assert "installs" not in only_itself
+
+
+def nupkg(identifier: str, version: str) -> bytes:
+    """A minimal NuGet package: a zip holding only its .nuspec."""
+    nuspec = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">\n'
+        f"  <metadata><id>{identifier}</id><version>{version}</version>"
+        "<authors>Example Co</authors><description>Invented package for tests.</description>"
+        "</metadata>\n</package>\n"
+    )
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr(f"{identifier}.nuspec", nuspec)
+    return buffer.getvalue()
+
+
 @pytest.mark.skipif(not REAL_MAKEPKGINFO.is_file(), reason="needs Cimian's makepkginfo")
-def test_real_makepkginfo_on_windows(studio: TestClient, tmp_path: Path) -> None:
-    pytest.skip("Filled in on Windows with a real installer")
+def test_real_makepkginfo_on_windows(studio: TestClient, root: Path, tmp_path: Path) -> None:
+    data = nupkg("ExampleTool", "1.2.3")
+    name = "ExampleTool-1.2.3.nupkg"
+    probe_file = tmp_path / name
+    probe_file.write_bytes(data)
+    probe = subprocess.run(
+        [str(REAL_MAKEPKGINFO), str(probe_file)], capture_output=True, text=True, check=False
+    )
+    if probe.returncode and "Config.yaml" in probe.stderr:
+        pytest.skip("this makepkginfo reads Config.yaml first, which needs an elevated prompt")
+    # The pkginfo is all that reaches stdout.
+    assert probe.returncode == 0 and probe.stderr == "", probe.stderr
+    assert load(probe.stdout.encode()).data["installer"]["type"] == "nupkg"
+
+    w = worker(
+        studio, Tools.probe({"makepkginfo": REAL_MAKEPKGINFO, "makecatalogs": tmp_path / "x"})
+    )
+    job_id = start_import(studio, upload(studio, data, name)).json()["id"]
+    assert w.run_once()
+    job = wait(studio, job_id)
+    assert job["status"] == "succeeded", job
+    draft = job["result"]["draft"]
+    assert draft["pkginfo"] == "pkgsinfo/apps/ExampleTool-1.2.3.yaml"
+    saved = studio.post(f"/api/repositories/fixture/changesets/{draft['change_set']}/save", json={})
+    assert saved.status_code == 200, saved.text
+    pkginfo = load((root / draft["pkginfo"]).read_bytes()).data
+    assert pkginfo["installer"]["location"] == f"apps/{name}"
+    assert pkginfo["installer"]["hash"] == hashlib.sha256(data).hexdigest()
+    assert "installs" not in pkginfo
+
+    # The real makecatalogs accepts the imported pkginfo.
+    makecatalogs = REAL_MAKEPKGINFO.with_name("makecatalogs.exe")
+    if makecatalogs.is_file():
+        shutil.rmtree(root / "pkgsinfo" / "invalid")
+        subprocess.run(
+            [str(makecatalogs), "--repo_path", str(root), "--skip_payload_check"],
+            check=True,
+            capture_output=True,
+        )
+        catalog = catalogs.canonical((root / "catalogs" / "All.yaml").read_bytes())
+        assert "ExampleTool" in {item["name"] for item in catalog}

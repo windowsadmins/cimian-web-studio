@@ -1,5 +1,6 @@
 """What a Cimian repository looks like. The only platform-specific part of scanning."""
 
+from pathlib import PureWindowsPath
 from typing import Any, cast
 
 from cimian_web_studio import catalogs
@@ -277,6 +278,27 @@ def prepare_import(pkginfo: dict[str, Any], sha256: str, location: str) -> None:
     if str(details.get("hash", "")).lower() != sha256:
         raise ValueError("the pkginfo's installer.hash is not the upload's SHA-256")
     details["location"] = location
+    # For an .exe or .nupkg, makepkginfo lists the installer itself under
+    # installs, at the path it was given: the worker's staging folder. No client
+    # has that file, so it would never count as installed. Drop it; the reviewer
+    # adds a real installs check.
+    filename = PureWindowsPath(location).name.lower()
+    installs = pkginfo.get("installs")
+    if isinstance(installs, list):
+        kept = [
+            i
+            for i in cast(list[Any], installs)
+            if not (
+                isinstance(i, dict)
+                and cast(dict[str, Any], i).get("type") == "file"
+                and PureWindowsPath(str(cast(dict[str, Any], i).get("path", ""))).name.lower()
+                == filename
+            )
+        ]
+        if kept:
+            pkginfo["installs"] = kept
+        else:
+            del pkginfo["installs"]
 
 
 def dump_new_pkginfo(data: Any) -> bytes:
