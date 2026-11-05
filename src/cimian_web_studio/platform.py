@@ -2,6 +2,7 @@
 
 from typing import Any, cast
 
+from cimian_web_studio import catalogs
 from cimian_web_studio.jobs.remote import RemoteSpec
 
 # Top-level folders that hold metadata, and the kind of object each file is.
@@ -26,14 +27,17 @@ CAPABILITIES = {
 }
 REMOTE_OPERATIONS = (
     RemoteSpec(
-        name="catalog.preview",
-        title="Build catalogs with makecatalogs",
+        name="catalog.generate",
+        title="Generate catalogs",
         capability="catalog.generate",
         tool="makecatalogs",
         # Payloads are not sent to the worker, so their existence is not checked.
         args=("--repo_path", "{staging}", "--skip_payload_check"),
         inputs=("pkgsinfo",),
         outputs="catalogs",
+        applies_to="catalogs",
+        check=catalogs.check_output,
+        arguments=frozenset({"acknowledge_live"}),
     ),
 )
 

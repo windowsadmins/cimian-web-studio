@@ -11,6 +11,8 @@ import contextlib
 import hashlib
 import hmac
 import io
+import secrets
+import shutil
 import tarfile
 from pathlib import Path
 from typing import Annotated, Any, cast
@@ -24,10 +26,15 @@ from cimian_web_studio.api.read import _repo  # pyright: ignore[reportPrivateUsa
 from cimian_web_studio.auth.model import Role
 from cimian_web_studio.auth.routes import require
 from cimian_web_studio.auth.sessions import Session
+from cimian_web_studio.changes.apply import SaveError
+from cimian_web_studio.codec import ParseError, load
+from cimian_web_studio.jobs.apply import SwapAbortedError, swap_folder
 from cimian_web_studio.jobs.runner import WORKER_MAX_AGE, Runner, repository_revision
 from cimian_web_studio.jobs.store import Job, JobStore, LeaseLostError
-from cimian_web_studio.repository.config import Settings, WorkerEntry
+from cimian_web_studio.repository.config import Repository, Settings, WorkerEntry
+from cimian_web_studio.repository.index import Index
 from cimian_web_studio.repository.paths import PathEscapeError, normalize, read_contained
+from cimian_web_studio.repository.scanner import scan
 
 router = APIRouter(prefix="/api/worker", tags=["workers"])
 settings_router = APIRouter(tags=["workers"])
@@ -302,19 +309,121 @@ def complete(request: Request, job_id: str, body: Completion, worker: Worker) ->
         for extra in folder.rglob("*"):
             if extra.is_file() and extra not in listed:
                 extra.unlink()
-    result = {
+    result: dict[str, Any] = {
         "artifacts": [a.model_dump() for a in body.artifacts],
         "tool_version": body.tool_version,
         "output": body.output[-4000:],
         "input_revision": job.input_revision,
         "worker": worker.id,
     }
+    spec = _runner(request).operations[job.operation].remote
+    if spec is not None and spec.applies_to:
+        try:
+            private = _private_copy(
+                request, job, folder / spec.outputs, body.artifacts, spec.outputs
+            )
+            try:
+                result["applied"] = _apply(request, worker, job, private)
+            finally:
+                shutil.rmtree(private.parent, ignore_errors=True)
+        except CancelledApplyError, SwapAbortedError:
+            try:
+                cancelled = _store(request).cancelled(job.id, worker.id)
+            except LeaseLostError as lost:
+                raise HTTPException(409, str(lost)) from None
+            return {"status": cancelled.status}
+        except (ValueError, OSError, SaveError, ParseError) as error:
+            message = f"The {spec.applies_to} were not replaced: {error}"
+            try:
+                failed = _store(request).fail(job.id, worker.id, message)
+            except LeaseLostError as lost:
+                raise HTTPException(409, str(lost)) from None
+            _audit(request, worker.id, "job fail", failed, {"reason": message})
+            return {"status": failed.status}
     try:
         done = _store(request).complete(job.id, worker.id, result)
     except LeaseLostError as error:
         raise HTTPException(409, str(error)) from None
     _audit(request, worker.id, "job complete", done, {"artifacts": len(body.artifacts)})
     return {"status": done.status}
+
+
+def _private_copy(
+    request: Request, job: Job, output: Path, artifacts: list[Artifact], prefix: str
+) -> Path:
+    """Copy the outputs where uploads cannot reach, checking each hash again, so
+    the files that pass the check are the files that are swapped in."""
+    target = request.app.state.settings.state_dir / "applying" / f"{job.id}-{secrets.token_hex(4)}"
+    copy = target / prefix
+    copy.mkdir(parents=True)
+    wanted = {a.path: a.sha256.lower() for a in artifacts}
+    for path in sorted(output.rglob("*")) if output.is_dir() else []:
+        if path.is_symlink() or not path.is_file():
+            continue
+        relative = f"{prefix}/{path.relative_to(output).as_posix()}"
+        data = path.read_bytes()
+        if wanted.get(relative) != hashlib.sha256(data).hexdigest():
+            raise ValueError(f"{relative} changed after it was uploaded")
+        destination = copy / path.relative_to(output)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+    return copy
+
+
+class CancelledApplyError(Exception):
+    """Cancellation was asked for before the swap."""
+
+
+def _sources(repo: Repository, index: Index) -> list[dict[str, Any]]:
+    """Every readable pkginfo as the studio reads it, to check generated catalogs by."""
+    found: list[dict[str, Any]] = []
+    for obj in index.all(repo.id, "pkginfo"):
+        if obj.status != "ok":
+            continue
+        read = read_contained(repo.root, obj.path, MAX_INPUT_FILE_BYTES)
+        if read.raw is None:
+            continue
+        data = load(read.raw).data
+        if isinstance(data, dict):
+            found.append(cast(dict[str, Any], data))
+    return found
+
+
+def _apply(request: Request, worker: WorkerEntry, job: Job, output: Path) -> dict[str, Any]:
+    """Check a job's outputs and swap them into the repository. Raises before
+    touching anything if the repository moved on or the outputs fail the check."""
+    op = _runner(request).operations[job.operation]
+    spec = op.remote
+    if spec is None or spec.applies_to is None:
+        return {}
+    repo = _repo(request, job.repo_id)
+    index = request.app.state.index
+    if not repo.writable:
+        raise ValueError("the repository is read-only in the studio's configuration")
+    scan(repo, index)
+    if repository_revision(index, repo) != job.input_revision:
+        raise ValueError("the repository changed while the job ran; start it again")
+    summary = spec.check(output, _sources(repo, index)) if spec.check else {}
+    store = _store(request)
+
+    def still_wanted() -> bool:
+        # Renews the lease, so a retry cannot start meanwhile, and reports a cancel.
+        return not store.heartbeat(job.id, worker.id, message=f"Replacing {spec.applies_to}")
+
+    if not still_wanted():
+        raise CancelledApplyError
+    swap_folder(repo, spec.applies_to, output, request.app.state.journal_dir, still_wanted)
+    scan(repo, index)
+    request.app.state.audit.record(
+        actor=f"worker:{worker.id}",
+        actor_name=worker.id,
+        interface="worker",
+        action=f"replace {spec.applies_to}",
+        repo_id=repo.id,
+        target=job.id,
+        detail={"started_by": job.created_by_name, "items": summary},
+    )
+    return {"folder": spec.applies_to, "counts": summary}
 
 
 class Failure(BaseModel):

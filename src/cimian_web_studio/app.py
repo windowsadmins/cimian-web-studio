@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from cimian_web_studio.api import audit as audit_routes
+from cimian_web_studio.api import catalogs as catalog_routes
 from cimian_web_studio.api import changes as change_routes
 from cimian_web_studio.api import jobs as job_routes
 from cimian_web_studio.api import manifests, read
@@ -26,7 +27,8 @@ from cimian_web_studio.auth.model import Role
 from cimian_web_studio.auth.sessions import SessionStore
 from cimian_web_studio.changes.apply import recover
 from cimian_web_studio.changes.store import ChangeSetStore
-from cimian_web_studio.jobs.runner import Runner
+from cimian_web_studio.jobs.apply import recover_swaps
+from cimian_web_studio.jobs.runner import OPERATIONS, Runner
 from cimian_web_studio.jobs.store import JobStore
 from cimian_web_studio.mcp import create_mcp
 from cimian_web_studio.repository.config import Settings, load_settings
@@ -103,6 +105,10 @@ def create_app(
                         report.journal,
                         report.conflicts,
                     )
+            for operation in OPERATIONS.values():
+                if repo.writable and operation.remote and operation.remote.applies_to:
+                    for action in recover_swaps(repo, operation.remote.applies_to):
+                        logger.warning("%s: %s", repo.id, action)
             scan(repo, index)
         # The runner starts after the first scan, so jobs see a current index.
         runner = Runner(jobs, settings, index)
@@ -142,6 +148,7 @@ def create_app(
     app.include_router(change_routes.router)
     app.include_router(change_routes.fields_router, dependencies=viewer)
     app.include_router(job_routes.router)
+    app.include_router(catalog_routes.router)
     app.include_router(worker_routes.router)
     app.include_router(worker_routes.settings_router)
     # With sign-in on, MCP requests need a studio bearer token (see auth/mcp.py).
