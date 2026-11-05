@@ -1,0 +1,14 @@
+name: ExampleBrowser
+display_name: Example Browser
+version: "136.0"
+category: Browsers
+catalogs:
+  - testing
+installer:
+  type: exe
+  location: pkgs/apps/browsers/ExampleBrowser-136.0.exe
+  hash: 0000000000000000000000000000000000000000000000000000000000000000
+installs:
+  - type: file
+    path: '%ProgramFiles%\Example\Browser\browser.exe'
+    version: "136.0.0.0"

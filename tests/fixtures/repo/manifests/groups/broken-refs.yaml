@@ -1,0 +1,5 @@
+catalogs: [testing]
+included_manifests:
+  - groups/does-not-exist
+managed_installs:
+  - ExampleMissing

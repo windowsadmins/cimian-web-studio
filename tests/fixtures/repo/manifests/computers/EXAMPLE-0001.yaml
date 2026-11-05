@@ -1,0 +1,5 @@
+catalogs:
+  - testing
+  - production
+included_manifests:
+  - groups/design-lab

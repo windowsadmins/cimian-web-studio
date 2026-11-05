@@ -1,0 +1,3 @@
+catalogs: [testing]
+included_manifests:
+  - groups/loop-b

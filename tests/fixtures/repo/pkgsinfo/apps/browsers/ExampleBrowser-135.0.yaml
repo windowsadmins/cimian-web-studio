@@ -1,0 +1,20 @@
+name: ExampleBrowser
+display_name: Example Browser
+version: "135.0"
+category: Browsers
+developer: Example Co
+description: Invented browser package for tests.
+catalogs:
+  - testing
+  - production
+installer:
+  type: exe
+  location: pkgs/apps/browsers/ExampleBrowser-135.0.exe
+  hash: 0000000000000000000000000000000000000000000000000000000000000000
+  arguments:
+    - /S
+installs:
+  - type: file
+    path: '%ProgramFiles%\Example\Browser\browser.exe'
+    version: "135.0.0.0"
+unattended_install: true
