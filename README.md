@@ -44,6 +44,33 @@ and an optional Windows worker for Cimian's Windows-only tools. Deployment,
 framework, identity provider, and licensing choices remain open. No cloud
 resources have been provisioned.
 
+## Command line
+
+`cwsctl` works on a repository folder directly, with no server. Find packages
+and manifests:
+
+```sh
+cwsctl search editor --repo /path/to/repo
+```
+
+Print one file, or list what refers to a package:
+
+```sh
+cwsctl show pkgsinfo/apps/Editor-2.10.yaml --repo /path/to/repo
+```
+
+```sh
+cwsctl where-used Editor --repo /path/to/repo
+```
+
+Check the whole repository. The command exits 1 when it finds errors, so a
+repository's CI can run it on every pull request; `--strict` fails on warnings
+too, and `--json` prints a machine-readable report:
+
+```sh
+cwsctl validate --repo /path/to/repo
+```
+
 ## Development
 
 The backend is a Python 3.14 package managed with [uv](https://docs.astral.sh/uv/).
