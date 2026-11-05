@@ -7,8 +7,8 @@ let jobs: Record<string, unknown>[];
 let posted: unknown[];
 
 const catalogs = [
-  { name: "all", path: "catalogs/all", items: 2, expected: 2, up_to_date: true, error: null },
-  { name: "production", path: "catalogs/production", items: 1, expected: 2, up_to_date: false, error: null },
+  { name: "All", path: "catalogs/All.yaml", items: 2, expected: 2, up_to_date: true, error: null },
+  { name: "production", path: "catalogs/production.yaml", items: 1, expected: 2, up_to_date: false, error: null },
 ];
 
 async function respond(request: Request): Promise<Response> {
@@ -22,11 +22,11 @@ async function respond(request: Request): Promise<Response> {
   if (pathname.endsWith("/catalogs/production"))
     return json({
       ...catalogs[1],
-      members: [{ name: "ExampleBrowser", version: "136.0", pkginfo: "pkgsinfo/ExampleBrowser-136.0.plist" }],
-      missing: [{ name: "ExampleEditor", version: "2.10", pkginfo: "pkgsinfo/ExampleEditor-2.10.plist" }],
+      members: [{ name: "ExampleBrowser", version: "136.0", pkginfo: "pkgsinfo/ExampleBrowser-136.0.yaml" }],
+      missing: [{ name: "ExampleEditor", version: "2.10", pkginfo: "pkgsinfo/ExampleEditor-2.10.yaml" }],
       extra: [],
     });
-  if (pathname.endsWith("/catalogs/all")) return json({ ...catalogs[0], members: [], missing: [], extra: [] });
+  if (pathname.endsWith("/catalogs/All")) return json({ ...catalogs[0], members: [], missing: [], extra: [] });
   if (pathname.endsWith("/jobs") && request.method === "POST") {
     posted.push(await request.json());
     const job = { id: "g1", operation: "catalog.generate", status: "queued", updated_at: "2026-11-05T10:00:00Z", error: null };

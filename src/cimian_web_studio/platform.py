@@ -96,7 +96,9 @@ PKGINFO_FIELDS: dict[str, str] = {
 def summarize(kind: str, data: Any) -> dict[str, Any]:
     """The searchable fields of one parsed file, plus what it refers to."""
     if kind == "catalog":
-        return {"items": len(cast(list[Any], data)) if isinstance(data, list) else 0}
+        # A Cimian catalog is a mapping whose `items` holds the entries.
+        items = cast(dict[str, Any], data).get("items") if isinstance(data, dict) else None
+        return {"items": len(cast(list[Any], items)) if isinstance(items, list) else 0}
     if not isinstance(data, dict):
         return {}
     mapping = cast(dict[str, Any], data)

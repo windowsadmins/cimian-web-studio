@@ -93,6 +93,57 @@ read, then start the worker:
 cwsctl worker run --url https://studio.example.org --id win-1 --token-file C:\ProgramData\cwsctl\win-1.token
 ```
 
+### Catalogs
+
+Catalogs shows each catalog's contents and where it has fallen behind the
+pkginfo: items a pkginfo lists for a catalog that the catalog is missing, and
+items still in a catalog that no pkginfo puts there. `All` always holds every
+pkginfo. Generate catalogs runs
+`makecatalogs.exe --repo_path <staging> --skip_payload_check` on the worker
+against the repository's pkginfo, at the revision the job started from.
+
+The studio does not trust the worker with what clients install. `makecatalogs`
+reads each pkginfo into its own model: it keeps only the fields that model
+declares, drops every other key at any depth (such as `notes`, `_metadata` or a
+site's own keys), and writes `unattended_install`, `unattended_uninstall`,
+`OnDemand` and `recurring` as `false` when a pkginfo leaves them out. It also
+stamps every item with `loop_fingerprint`, a hash of the item itself. The studio
+builds the same item from its own reading of the pkginfo, fingerprint included,
+and requires every catalog file to be exactly those bytes, in the form
+`makecatalogs` writes. Values must match in type too, so `true` never passes
+for `1`. Each catalog must hold exactly the pkginfo that list it, and no other
+catalog may appear.
+
+The check and the swap use the same private copy of the files, so nothing
+uploaded afterwards is applied. The studio then swaps the catalogs into
+`catalogs/` in one step. It removes stale catalogs as `makecatalogs` does and
+keeps hidden files such as `.gitkeep`. The existing catalogs stay as they were
+if any of these happen:
+
+- the tool fails
+- the output fails the check
+- the job is cancelled
+- the repository changes while the job runs
+
+The result matches running `makecatalogs` directly on the same pkginfo.
+Generating needs a writable repository, and a live repository asks for
+confirmation first.
+
+`makecatalogs` refuses to write catalogs while any pkginfo fails to parse, and
+the studio does not pass `--tolerate_parse_errors`. Fix or remove a broken
+pkginfo before generating.
+
+The studio refuses a few outputs that it cannot match exactly. Each one fails
+the job and leaves the existing catalogs in place:
+
+- A text value of `~` or `null`. `makecatalogs` writes it unquoted, so a client
+  reads it as null.
+- A pkginfo that lists the same catalog twice, in any capitalisation.
+  `makecatalogs` writes the item once and refers back to it with a YAML alias.
+- Text with characters outside the Basic Multilingual Plane, such as emoji, or
+  with tabs.
+- `force_install_after_date`.
+
 ## Sign-in
 
 Without an `[auth]` table the studio is single-user and answers only on this
