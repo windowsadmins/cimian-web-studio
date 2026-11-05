@@ -63,6 +63,10 @@ def read_contained(root: Path, relative: str, limit: int) -> FileRead:
     descriptor's real path is checked again, so replacing a file or directory
     with a link between the check and the read cannot redirect it. At most
     `limit` + 1 bytes are read.
+
+    On Windows neither guard exists: there is no O_NOFOLLOW, and the open
+    descriptor's path is not checked, so only the resolve-and-check before
+    the open applies. A link swapped in after that check is followed.
     """
     real_root = root.resolve(strict=True)
     target = contained(real_root, relative)
