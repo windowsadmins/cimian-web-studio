@@ -61,5 +61,10 @@ def openapi(
         typer.echo(text, nl=False)
 
 
+from cimian_web_studio import local  # noqa: E402
+
+local.register(cli)
+
+
 def main() -> None:
     cli()
