@@ -9,7 +9,7 @@ catalogs:
   - production
 installer:
   type: exe
-  location: pkgs/apps/browsers/ExampleBrowser-135.0.exe
+  location: apps/browsers/ExampleBrowser-135.0.exe
   hash: 0000000000000000000000000000000000000000000000000000000000000000
   arguments:
     - /S

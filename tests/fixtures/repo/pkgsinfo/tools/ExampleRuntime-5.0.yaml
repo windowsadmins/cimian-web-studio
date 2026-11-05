@@ -6,6 +6,6 @@ catalogs:
   - production
 installer:
   type: exe
-  location: pkgs/tools/ExampleRuntime-5.0.exe
+  location: tools/ExampleRuntime-5.0.exe
   hash: 0000000000000000000000000000000000000000000000000000000000000000
   arguments: ["/quiet"]

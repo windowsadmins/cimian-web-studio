@@ -6,7 +6,7 @@ catalogs:
   - testing
 installer:
   type: exe
-  location: pkgs/apps/browsers/ExampleBrowser-136.0.exe
+  location: apps/browsers/ExampleBrowser-136.0.exe
   hash: 0000000000000000000000000000000000000000000000000000000000000000
 installs:
   - type: file
