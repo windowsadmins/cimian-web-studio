@@ -72,7 +72,8 @@ def _payload(location: str | None) -> str | None:
     return f"{PAYLOAD_FOLDER}/" + location.lstrip("/\\").replace("\\", "/")
 
 
-def _condition(entry: dict[str, Any]) -> str | None:
+def condition_text(entry: dict[str, Any]) -> str | None:
+    """The condition of one conditional item, as text."""
     condition = _text(entry.get("condition"))
     if condition:
         return condition
@@ -105,7 +106,7 @@ def _references(
         for item in cast(list[Any], items):
             if isinstance(item, dict):
                 entry = cast(dict[str, Any], item)
-                refs += _references(kind, entry, _condition(entry) or condition)
+                refs += _references(kind, entry, condition_text(entry) or condition)
     return refs
 
 
