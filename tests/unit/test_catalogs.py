@@ -332,13 +332,15 @@ def test_catalogs_view_shows_membership_and_what_is_out_of_date(
 ) -> None:
     listed = {c["name"]: c for c in studio.get("/api/repositories/fixture/catalogs").json()}
     assert listed["stale"]["expected"] == 0 and not listed["stale"]["up_to_date"]
-    # The duplicate ExampleBrowser 136.0 pkginfo counts once by name and version.
-    assert listed["All"]["error"] == "Not generated yet" and listed["All"]["expected"] == 7
+    # Both ExampleBrowser 136.0 pkginfo count, as makecatalogs lists both.
+    assert listed["All"]["error"] == "Not generated yet" and listed["All"]["expected"] == 8
     for path in generated(root, tmp_path).iterdir():
         shutil.copy(path, root / "catalogs" / path.name)
     studio.post("/api/repositories/fixture/rescan").raise_for_status()
     testing = studio.get("/api/repositories/fixture/catalogs/testing").json()
     assert testing["up_to_date"] and all(m["pkginfo"] for m in testing["members"])
+    everything = studio.get("/api/repositories/fixture/catalogs/All").json()
+    assert everything["up_to_date"] and everything["items"] == everything["expected"] == 8
     editor = root / "pkgsinfo/apps/creative/ExampleEditor-2.10.yaml"
     editor.write_bytes(editor.read_bytes().replace(b"  - production", b"  - staging", 1))
     studio.post("/api/repositories/fixture/rescan").raise_for_status()
