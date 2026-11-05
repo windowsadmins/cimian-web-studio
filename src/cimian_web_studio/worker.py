@@ -1,5 +1,5 @@
-"""The worker: a separate process, usually on a Windows machine, that runs
-platform tools for the studio.
+"""The worker: a separate process, on a machine with the platform's own tools,
+that runs those tools for the studio.
 
 It connects out to the studio, so the studio never needs to reach it. It reports
 its OS and the versions of the tools it found, claims jobs it can run, copies
@@ -7,7 +7,7 @@ each job's inputs into a fresh staging folder, runs one allowlisted tool with a
 fixed argument list, and uploads the output files with their hashes. It never
 runs a shell or anything from the repository.
 
-    cwsctl worker run --url https://studio.example.org --id mac-1 --token-file ~/.mac-1.token
+    cwsctl worker run --url https://studio.example.org --id worker-1 --token-file worker-1.token
 """
 
 import hashlib
