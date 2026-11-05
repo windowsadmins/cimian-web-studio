@@ -21,6 +21,9 @@ export const PLATFORM = {
   descriptionLabel: "Shown in Managed Software Center for Windows",
 };
 
+// Installer files an import accepts.
+export const IMPORT_ACCEPT = ".msi,.exe,.nupkg";
+
 // Manifest keys the manifests workspace edits, in the order it shows them.
 export const MANIFEST_INCLUDES = "included_manifests";
 export const MANIFEST_SECTIONS = [

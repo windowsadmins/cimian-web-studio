@@ -17,16 +17,25 @@ IGNORED_NAMES = frozenset({".DS_Store", ".gitkeep", "Thumbs.db"})
 # Folders a Cimian client downloads, which publishing copies into a release.
 PUBLISHED_FOLDERS = ("catalogs", "manifests", "pkgs", "icons")
 
+# Installer files an import accepts, and the format a new pkginfo is written in.
+IMPORT_SUFFIXES = (".msi", ".exe", ".nupkg")
+NEW_PKGINFO_SUFFIX = ".yaml"
+
 # Workers. A Windows worker runs these Cimian tools and nothing else, from these paths.
 WORKER_PLATFORM = "Windows"
 WORKER_TOOLS = {
     "makecatalogs": r"C:\Program Files\Cimian\makecatalogs.exe",
+    "makepkginfo": r"C:\Program Files\Cimian\makepkginfo.exe",
 }
 # How each tool prints its version.
-TOOL_VERSION_ARGS: dict[str, tuple[str, ...]] = {"makecatalogs": ("-V",)}
+TOOL_VERSION_ARGS: dict[str, tuple[str, ...]] = {
+    "makecatalogs": ("-V",),
+    "makepkginfo": ("--version",),
+}
 # Each capability a worker can offer, and the tools it needs.
 CAPABILITIES = {
     "catalog.generate": ("makecatalogs",),
+    "installer.inspect": ("makepkginfo",),
 }
 REMOTE_OPERATIONS = (
     RemoteSpec(
@@ -41,6 +50,22 @@ REMOTE_OPERATIONS = (
         applies_to="catalogs",
         check=catalogs.check_output,
         arguments=frozenset({"acknowledge_live"}),
+    ),
+    RemoteSpec(
+        name="package.import",
+        title="Import a package",
+        capability="installer.inspect",
+        tool="makepkginfo",
+        # makepkginfo reads the installer's metadata and prints a pkginfo; it runs
+        # nothing from the installer.
+        args=("{upload}",),
+        inputs=(),
+        outputs="out",
+        upload_argument="upload",
+        stdout_file="out/pkginfo.yaml",
+        creates_draft=True,
+        arguments=frozenset({"upload", "subdirectory"}),
+        max_attempts=1,
     ),
 )
 
@@ -232,3 +257,38 @@ def _texts(value: Any) -> list[str]:
     return (
         [v for v in cast(list[Any], value) if isinstance(v, str)] if isinstance(value, list) else []
     )
+
+
+def import_paths(name: str, version: str, filename: str, subdirectory: str) -> tuple[str, str, str]:
+    """Where an imported package's pkginfo and installer go, and the
+    installer.location that points from one to the other."""
+    folder = f"{subdirectory}/" if subdirectory else ""
+    location = f"{folder}{filename}"
+    return f"pkgsinfo/{folder}{name}-{version}{NEW_PKGINFO_SUFFIX}", f"pkgs/{location}", location
+
+
+def prepare_import(pkginfo: dict[str, Any], sha256: str, location: str) -> None:
+    """Check that makepkginfo's pkginfo describes the uploaded file, then point
+    it at the installer's place in the repository. Raises ValueError otherwise."""
+    installer = pkginfo.get("installer")
+    if not isinstance(installer, dict):
+        raise ValueError("the pkginfo has no installer section")
+    details = cast(dict[str, Any], installer)
+    if str(details.get("hash", "")).lower() != sha256:
+        raise ValueError("the pkginfo's installer.hash is not the upload's SHA-256")
+    details["location"] = location
+
+
+def dump_new_pkginfo(data: Any) -> bytes:
+    """The bytes of a new pkginfo file: block-style YAML that keeps text as text."""
+    from io import StringIO
+
+    from ruamel.yaml import YAML
+
+    writer = YAML(typ="safe", pure=True)
+    writer.default_flow_style = False
+    writer.sort_base_mapping_type_on_output = False  # pyright: ignore[reportAttributeAccessIssue]
+    writer.width = 4096
+    buffer = StringIO()
+    writer.dump(data, buffer)  # pyright: ignore[reportUnknownMemberType]
+    return buffer.getvalue().encode("utf-8")
