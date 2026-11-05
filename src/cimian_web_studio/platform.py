@@ -285,16 +285,15 @@ def prepare_import(pkginfo: dict[str, Any], sha256: str, location: str) -> None:
     filename = PureWindowsPath(location).name.lower()
     installs = pkginfo.get("installs")
     if isinstance(installs, list):
-        kept = [
-            i
-            for i in cast(list[Any], installs)
-            if not (
-                isinstance(i, dict)
-                and cast(dict[str, Any], i).get("type") == "file"
-                and PureWindowsPath(str(cast(dict[str, Any], i).get("path", ""))).name.lower()
-                == filename
-            )
-        ]
+
+        def itself(entry: Any) -> bool:
+            if not isinstance(entry, dict):
+                return False
+            check = cast(dict[str, Any], entry)
+            path = PureWindowsPath(str(check.get("path", "")))
+            return check.get("type") == "file" and path.name.lower() == filename
+
+        kept: list[Any] = [i for i in cast(list[Any], installs) if not itself(i)]
         if kept:
             pkginfo["installs"] = kept
         else:
