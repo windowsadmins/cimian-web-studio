@@ -43,3 +43,26 @@ The proposed starting point is a self-hosted web app with a repository service
 and an optional Windows worker for Cimian's Windows-only tools. Deployment,
 framework, identity provider, and licensing choices remain open. No cloud
 resources have been provisioned.
+
+## Development
+
+The backend is a Python 3.14 package managed with [uv](https://docs.astral.sh/uv/).
+Install the dependencies from the lockfile:
+
+```sh
+uv sync
+```
+
+Run the linters, type checker, and tests:
+
+```sh
+uv run ruff check && uv run ruff format --check && uv run pyright && uv run pytest
+```
+
+Start the web app, API, and MCP server on <http://127.0.0.1:3186>:
+
+```sh
+uv run cwsctl serve
+```
+
+The health check is at `/api/health` and the MCP server at `/mcp`.
