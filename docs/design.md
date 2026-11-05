@@ -16,7 +16,8 @@ What changes is content and identity:
 - Detection shows `installs` entries (file path and version, MSI product code).
 - Uninstall shows the `uninstaller` list; Advanced shows `supported_architectures`,
   `minimum_os_version`, and `blocking_applications`.
-- Manifests show both `conditional_items` forms as readable rules.
+- Manifests show each `condition:` string as a readable rule, and flag the
+  fact/operator/value form, which Cimian clients do not read.
 - The accent is a Windows blue in place of MunkiStudio's cardboard brown; light and
   dark palettes keep the same contrast roles.
 

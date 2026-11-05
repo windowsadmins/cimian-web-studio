@@ -43,6 +43,7 @@ def summarize(kind: str, data: Any) -> dict[str, Any]:
         "category": _text(mapping.get("category")),
         "catalogs": _texts(mapping.get("catalogs")),
         "refs": _references(kind, mapping),
+        "problems": _problems(kind, mapping),
     }
     if kind == "pkginfo":
         installer = mapping.get("installer")
@@ -108,6 +109,46 @@ def _references(
                 entry = cast(dict[str, Any], item)
                 refs += _references(kind, entry, _condition(entry) or condition)
     return refs
+
+
+def _problems(kind: str, mapping: dict[str, Any]) -> list[dict[str, str]]:
+    """Manifest shapes Cimian clients do not read, per the conditional items guide."""
+    if kind != "manifest":
+        return []
+    problems: list[dict[str, str]] = []
+    items = mapping.get("conditional_items")
+    for item in cast(list[Any], items) if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        entry = cast(dict[str, Any], item)
+        if "fact" in entry or isinstance(entry.get("condition"), dict):
+            problems.append(
+                {
+                    "severity": "error",
+                    "code": "unsupported-condition-form",
+                    "message": "Cimian reads only `condition:` strings; rewrite the "
+                    "fact/operator/value form as one, such as condition: \"department == 'IT'\"",
+                }
+            )
+        if "conditional_items" in entry:
+            problems.append(
+                {
+                    "severity": "error",
+                    "code": "nested-conditional-items",
+                    "message": "Cimian does not read conditional items nested inside another; "
+                    "combine the conditions with AND instead",
+                }
+            )
+        if "conditions" in entry:
+            problems.append(
+                {
+                    "severity": "error",
+                    "code": "unsupported-condition-form",
+                    "message": "Cimian does not read a `conditions:` list; use one `condition:` "
+                    "string with AND or OR",
+                }
+            )
+    return problems
 
 
 def split_item(item: str) -> tuple[str, str | None]:

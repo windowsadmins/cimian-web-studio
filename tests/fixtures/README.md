@@ -17,7 +17,7 @@ A small Cimian repository with the real layout (`pkgsinfo`, `manifests`,
 | msi, exe, msix, nupkg, ps1 installers | across `pkgsinfo` |
 | Dependencies, unknown keys, large integers, zero hash | `ExampleEditor`, `ExampleEditorPlugin` |
 | Invalid files | `pkgsinfo/invalid` |
-| Both conditional item forms | `manifests/groups/design-lab.yaml` |
+| A `condition:` string, and the fact/operator/value form Cimian clients ignore | `manifests/groups/design-lab.yaml` |
 | Missing references | `manifests/groups/broken-refs.yaml` |
 | Include cycle | `manifests/groups/loop-a.yaml` and `loop-b.yaml` |
 

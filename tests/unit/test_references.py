@@ -79,3 +79,20 @@ def test_present_payloads_are_not_reported(scanned: tuple[Repository, Index]) ->
     payload.write_bytes(b"")
     paths = {p for p, _ in codes(validate(index, repo), "missing-payload")}
     assert "pkgsinfo/apps/creative/ExampleEditor-2.10.yaml" not in paths
+
+
+def test_unsupported_condition_shapes_are_errors(scanned: tuple[Repository, Index]) -> None:
+    repo, index = scanned
+    (repo.root / "manifests/groups/nested.yaml").write_text(
+        "conditional_items:\n"
+        "  - condition: arch == x64\n"
+        "    conditional_items:\n"
+        "      - condition: domain == CORP\n"
+        "        managed_installs: [ExampleEditor]\n"
+    )
+    scan(repo, index)
+    issues = validate(index, repo)
+    assert ("manifests/groups/design-lab.yaml", None) in codes(issues, "unsupported-condition-form")
+    assert ("manifests/groups/nested.yaml", None) in codes(issues, "nested-conditional-items")
+    assert ("manifests/groups/design-lab.yaml", "department") in codes(issues, "unknown-fact")
+    assert not codes(issues, "condition-syntax")
