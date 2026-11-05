@@ -1,6 +1,7 @@
 import hashlib
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -203,3 +204,50 @@ def test_index_serves_many_threads_at_once(repo: Repository, index: Index) -> No
     with ThreadPoolExecutor(max_workers=16) as pool:
         counts = list(pool.map(lambda _: len(index.all(repo.id)), range(200)))
     assert counts == [expected] * 200
+
+
+windows_only = pytest.mark.skipif(sys.platform != "win32", reason="junctions are Windows-only")
+
+
+def _junction(link: Path, target: Path) -> None:
+    import _winapi
+
+    _winapi.CreateJunction(str(target), str(link))  # type: ignore[attr-defined]
+
+
+@windows_only
+def test_junctions_out_of_the_repository_are_not_listed(
+    repo: Repository, index: Index, tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "Escaped-1.0.yaml").write_bytes((REPO / "manifests/site_default.yaml").read_bytes())
+    _junction(repo.root / "pkgsinfo/linked-junction", outside)
+    result = scan(repo, index)
+    assert not any(p.startswith("pkgsinfo/linked-junction") for p in result.skipped)
+    assert not any(o.path.startswith("pkgsinfo/linked-junction") for o in index.all(repo.id))
+
+
+@windows_only
+def test_a_junction_swapped_in_after_the_check_is_refused(
+    repo: Repository, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from cimian_web_studio.repository import paths
+
+    folder = repo.root / "manifests/swap"
+    folder.mkdir()
+    (folder / "late.yaml").write_bytes(b"inside: true\n")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "late.yaml").write_bytes(b"outside: true\n")
+    checked = paths.contained
+
+    def check_then_swap(root: Path, relative: str) -> Path:
+        target = checked(root, relative)
+        shutil.rmtree(folder)
+        _junction(folder, outside)
+        return target
+
+    monkeypatch.setattr(paths, "contained", check_then_swap)
+    with pytest.raises(PathEscapeError, match="leaves the repository"):
+        paths.read_contained(repo.root, "manifests/swap/late.yaml", 1024)
