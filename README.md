@@ -16,6 +16,14 @@ repository YAML remains authoritative.
 
 **Status: planning and design exploration. There is no application backend yet.**
 
+## Install
+
+To run the studio on one host with Docker Compose, plus an optional Windows
+worker, follow [docs/install.md](docs/install.md). The container image runs as
+an unprivileged user, mounts the repository read-only, keeps its state on its
+own volume, and is pinned by digest in the Compose example. Without sign-in it
+refuses to listen on anything but this machine.
+
 ## Start here
 
 - [Build plan](docs/build-plan.md)

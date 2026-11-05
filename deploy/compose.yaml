@@ -1,0 +1,34 @@
+# Cimian Web Studio on one host. See docs/install.md.
+#
+# The image is pinned by digest. Replace STUDIO_IMAGE in .env with the digest
+# from the release you install (each release lists it); never use :latest.
+services:
+  studio:
+    image: ${STUDIO_IMAGE:?set STUDIO_IMAGE to ghcr.io/windowsadmins/cimian-web-studio@sha256:<digest>}
+    restart: unless-stopped
+    ports:
+      # Bound to loopback: put a TLS reverse proxy in front for other machines.
+      - "127.0.0.1:3186:3186"
+    environment:
+      # Lets the studio listen inside the container without sign-in. This is safe
+      # only because the port above is bound to 127.0.0.1. Remove this line once
+      # [auth] is set up in studio.toml, and never publish the port more widely
+      # while it is here.
+      CIMIAN_WEB_STUDIO_ALLOW_UNAUTHENTICATED: "1"
+    volumes:
+      - ./studio.toml:/etc/studio/studio.toml:ro
+      # The Cimian repository, read-only. Use :rw only for an authoring copy the
+      # config marks writable = true.
+      - ${CIMIAN_REPO:?set CIMIAN_REPO to the repository folder}:/srv/cimian:ro
+      - studio-state:/var/lib/studio
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    pids_limit: 256
+
+volumes:
+  # Drafts, jobs, sessions, the audit log, uploads and the search index.
+  studio-state:
