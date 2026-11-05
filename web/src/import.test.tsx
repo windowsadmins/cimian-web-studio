@@ -21,7 +21,7 @@ async function respond(request: Request): Promise<Response> {
   if (pathname === "/api/fields") return json({});
   if (pathname.endsWith("/uploads") && request.method === "POST") {
     entry.body = await request.json();
-    return json({ id: "u1", filename: "Example.pkg", size: SIZE, sha256: "a".repeat(64), received: 0, complete: false }, 201);
+    return json({ id: "u1", filename: "Example.msi", size: SIZE, sha256: "a".repeat(64), received: 0, complete: false }, 201);
   }
   if (pathname.endsWith("/uploads/u1") && request.method === "PATCH") {
     const chunk = new Uint8Array(await request.arrayBuffer());
@@ -32,7 +32,7 @@ async function respond(request: Request): Promise<Response> {
     received += chunk.length;
     return json({ id: "u1", received, complete: received === SIZE });
   }
-  if (pathname.endsWith("/uploads/u1")) return json({ id: "u1", filename: "Example.pkg", size: SIZE, sha256: "a".repeat(64), received, complete: received === SIZE });
+  if (pathname.endsWith("/uploads/u1")) return json({ id: "u1", filename: "Example.msi", size: SIZE, sha256: "a".repeat(64), received, complete: received === SIZE });
   if (pathname.endsWith("/jobs") && request.method === "POST") {
     entry.body = await request.json();
     return json({ id: "j1", status: "queued" }, 201);
@@ -49,7 +49,7 @@ async function respond(request: Request): Promise<Response> {
               id: "c9", repo_id: "main", owner: "local", owner_name: "Local administrator", title: "Import Example 1.0", status: "open",
               created_at: "", updated_at: "",
               files: [{ path: "pkgsinfo/apps/Example-1.0.plist", base_revision: "", current_revision: null, changes: [], conflict: false, error: null, surgical: false, diff: "+<key>name</key>" }],
-              payloads: [{ path: "pkgs/apps/Example.pkg", size: SIZE, sha256: "a".repeat(64), conflict: false }],
+              payloads: [{ path: "pkgs/apps/Example.msi", size: SIZE, sha256: "a".repeat(64), conflict: false }],
             },
           ]
         : [],
@@ -76,12 +76,12 @@ describe("importing", () => {
     render(<App />);
     await userEvent.click(await screen.findByRole("button", { name: "Import a package…" }));
     const dialog = await screen.findByRole("dialog", { name: "Import a package" });
-    const file = new File([new Uint8Array(SIZE)], "Example.pkg", { type: "application/octet-stream" });
+    const file = new File([new Uint8Array(SIZE)], "Example.msi", { type: "application/octet-stream" });
     await userEvent.upload(within(dialog).getByLabelText("Installer"), file);
     dropNext = true;
     await userEvent.click(within(dialog).getByRole("button", { name: "Upload and import" }));
     const review = await screen.findByRole("dialog", { name: "1 file changed" }, { timeout: 8000 });
-    expect(within(review).getByText("pkgs/apps/Example.pkg")).toBeInTheDocument();
+    expect(within(review).getByText("pkgs/apps/Example.msi")).toBeInTheDocument();
     expect(received).toBe(SIZE);
     const offsets = calls.filter((c) => c.method === "PATCH").map((c) => c.offset);
     expect(offsets[0]).toBe("0");
