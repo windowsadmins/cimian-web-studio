@@ -54,6 +54,25 @@ overwriting that change. If clients read the folder directly, mark it
 `live = true`: the studio then asks for an explicit confirmation before each
 save, because the change reaches clients at once.
 
+## Git
+
+When a repository is a Git working tree, the top bar shows its branch, and Settings
+shows the commit, the upstream and what is uncommitted. After a save, the studio
+offers to commit the files that save wrote, and only those, even when other
+files are staged or modified. It refuses if one of them has changed again since
+the save. Pushing is a separate action for Publishers, to the branch's upstream,
+over https or ssh only.
+
+Git never runs anything the repository names. Every command ignores the system
+and global Git config and points hooks at an empty folder. It also turns off the
+fsmonitor, pager, editor, credential helpers, external diffs and signing. The
+studio accepts only a fixed list of ordinary repository settings (line endings,
+branches and remotes, user name, Husky's hooks path, and similar). A repository
+whose own config, local or per-worktree, sets anything else is left alone, and
+Settings names the setting that stopped it. Credentials in remote URLs never
+appear in error messages. A repository that is not a Git working tree works exactly as
+before.
+
 ## Jobs
 
 Work that takes a while runs as a job: validating the repository, re-reading
