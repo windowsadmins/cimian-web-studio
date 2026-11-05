@@ -38,8 +38,8 @@ Do not show a sidebar of disabled future features.
 
 Show each conditional block as a rule header followed by the items it adds:
 "When hostname contains 'ENG-' → install vscode, git". The fact/operator/value form
-renders the same way. Unknown facts and syntax errors are flagged inline with a link
-to source. Editing conditions waits for a parser decision; the study is read-only.
+is flagged as an error, because Cimian clients read only `condition:` strings. Unknown facts and syntax errors are flagged inline with a link
+to source. The study is read-only.
 
 ## Edit/review journey
 

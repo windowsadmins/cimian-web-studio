@@ -32,8 +32,10 @@ complete revision.
 A Cimian repo uses `pkgsinfo/`, `manifests/`, `catalogs/`, `pkgs/`, and `icons/`.
 All metadata is YAML. Catalogs are generated from pkginfo by `makecatalogs`.
 Manifests reference items by `name`, include other manifests, and carry
-`conditional_items` in two forms: a string expression (`hostname contains 'ENG-'`)
-and a `fact`/`operator`/`value` mapping.
+`conditional_items`, each with one `condition:` string such as
+`hostname CONTAINS ENG- AND arch == x64`. Cimian clients do not read the
+`fact`/`operator`/`value` mapping or nested conditional items, so validation flags
+both.
 
 ## Domain modules
 
@@ -42,7 +44,7 @@ and a `fact`/`operator`/`value` mapping.
 | Repository         | Configured roots, capabilities, path identities, scan revisions         |
 | Metadata           | YAML documents, unknown keys, source preservation, validation           |
 | Packages/manifests | Editing rules, references, ordering, dependency graph                   |
-| Conditions         | Parse both condition forms, show facts, report syntax errors            |
+| Conditions         | Parse condition strings, show facts, report syntax errors and unread forms |
 | Change sets        | Drafts, base revision, diff, validation, conflict/recovery state        |
 | Jobs               | Durable lifecycle, progress, cancellation, retries, worker capabilities |
 | Git/publication    | Optional commits, branch state, deployment-specific release             |
