@@ -79,12 +79,17 @@ def test_invalid_objects_are_listed_with_diagnostics(client: TestClient) -> None
 def test_manifests_and_catalogs(client: TestClient) -> None:
     manifests = client.get("/api/repositories/fixture/objects", params={"kind": "manifest"}).json()
     assert "manifests/groups/design-lab.yaml" in {o["path"] for o in manifests["items"]}
-    catalogs = {
-        c["name"]: c["items"] for c in client.get("/api/repositories/fixture/catalogs").json()
-    }
-    assert set(catalogs) == {"testing", "production"}
+    # The fixture ships no generated catalogs: every catalog a pkginfo names is listed
+    # as not generated yet, with what generating would put in it.
+    catalogs = {c["name"]: c for c in client.get("/api/repositories/fixture/catalogs").json()}
+    assert list(catalogs) == ["All", "production", "testing"]
+    assert all(c["error"] == "Not generated yet" and c["items"] == 0 for c in catalogs.values())
+    assert not any(c["up_to_date"] for c in catalogs.values())
     production = client.get("/api/repositories/fixture/catalogs/production").json()
-    assert production["total"] == catalogs["production"]
+    assert (
+        production["members"] == [] and production["expected"] == catalogs["production"]["expected"]
+    )
+    assert "ExampleEditor" in {m["name"] for m in production["missing"]}
 
 
 @pytest.mark.parametrize(

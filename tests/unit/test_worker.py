@@ -16,57 +16,108 @@ import pytest
 from fastapi.testclient import TestClient
 from tests.fixtures.build_repo_fixture import REPO
 
+from cimian_web_studio import catalogs
 from cimian_web_studio.app import create_app
 from cimian_web_studio.repository.config import Repository, Settings, WorkerEntry
 from cimian_web_studio.worker import JobError, Tools, Worker, safe_extract
 
 TOKEN = "worker-token-for-tests"  # noqa: S105
 REAL_MAKECATALOGS = Path(r"C:\Program Files\Cimian\makecatalogs.exe")
+# makecatalogs exits 1 when any pkginfo fails to parse, so most tests drop these.
+BROKEN_PKGINFO = "pkgsinfo/invalid"
 
-FAKE_TOOL = """#!/bin/sh
-if [ "$1" = "-V" ]; then echo "9.9.9-test"; exit 0; fi
-if [ -n "$FAKE_FAIL" ]; then echo "no catalogs for you" >&2; exit 3; fi
-staging="$2"
-mkdir -p "$staging/catalogs"
-find "$staging/pkgsinfo" -type f | sort > "$staging/catalogs/all"
-echo "wrote catalogs"
+# A stand-in for makecatalogs: it reads the staged pkginfo with the studio's
+# codec, builds each entry with the studio's model of makecatalogs, and writes
+# the catalogs the way makecatalogs does. Like makecatalogs, it fails when a
+# pkginfo cannot be read. The Windows tests check that model against the real tool.
+FAKE_TOOL = """
+import os, sys, pathlib
+from cimian_web_studio import catalogs as model
+from cimian_web_studio.codec import load
+if sys.argv[1] == "-V":
+    print("9.9.9-test")
+    sys.exit(0)
+if os.environ.get("FAKE_FAIL"):
+    print("no catalogs for you", file=sys.stderr)
+    sys.exit(3)
+staging = pathlib.Path(sys.argv[sys.argv.index("--repo_path") + 1])
+catalogs = {"All": []}
+broken = []
+for path in sorted((staging / "pkgsinfo").rglob("*")):
+    if not path.is_file() or path.suffix not in (".yaml", ".yml"):
+        continue
+    try:
+        item = model.expected_item(load(path.read_bytes()).data)
+    except Exception:
+        broken.append(path.name)
+        continue
+    TAMPER
+    catalogs["All"].append(item)
+    for name in item.get("catalogs", []):
+        catalogs.setdefault(name, []).append(item)
+if broken:
+    print("WARNING: pkgsinfo skipped (parse errors):", *broken)
+    sys.exit(1)
+EXTRA
+(staging / "catalogs").mkdir(exist_ok=True)
+for name, items in catalogs.items():
+    (staging / "catalogs" / f"{name}.yaml").write_bytes(model.render(items))
+print("wrote", len(catalogs), "catalogs")
 """
 
-SLOW_TOOL = """#!/bin/sh
-if [ "$1" = "-V" ]; then echo "slow"; exit 0; fi
-sleep 30
+FAILING_TOOL = FAKE_TOOL.replace('os.environ.get("FAKE_FAIL")', "True")
+SLOW_TOOL = """
+import sys, time
+if sys.argv[1] == "-V":
+    print("slow")
+    sys.exit(0)
+time.sleep(30)
 """
 
 
-# The fake tools are shell scripts; on Windows the real makecatalogs test runs instead.
-posix_only = pytest.mark.skipif(sys.platform == "win32", reason="fake tools are shell scripts")
+def fake(tamper: str = "", extra: str = "") -> str:
+    return FAKE_TOOL.replace("TAMPER", tamper or "pass").replace("EXTRA", extra or "pass")
+
+
+# The fake tools are Python scripts run by path; on Windows the real-tool tests run instead.
+posix_only = pytest.mark.skipif(sys.platform == "win32", reason="fake tools need a shebang")
+windows_only = pytest.mark.skipif(
+    not REAL_MAKECATALOGS.is_file(), reason="needs Cimian's makecatalogs"
+)
 
 
 def tool(tmp_path: Path, body: str, name: str = "makecatalogs") -> Path:
     path = tmp_path / "bin" / name
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(body)
+    path.write_text(
+        f"#!{sys.executable}\n{body.replace('TAMPER', 'pass').replace('EXTRA', 'pass')}"
+    )
     path.chmod(0o755)
     return path
 
 
 def only(tmp_path: Path, body: str) -> Tools:
     """A fake makecatalogs and nothing else, whatever is installed on this machine."""
-    path = tool(tmp_path, body)
-    return Tools.probe({"makecatalogs": path})
+    return Tools.probe({"makecatalogs": tool(tmp_path, body)})
+
+
+def repo_copy(tmp_path: Path, *, broken: bool = False) -> Path:
+    copy = tmp_path / "repo"
+    shutil.copytree(REPO, copy)
+    if not broken:
+        shutil.rmtree(copy / BROKEN_PKGINFO)
+    return copy
 
 
 @pytest.fixture
 def root(tmp_path: Path) -> Path:
-    copy = tmp_path / "repo"
-    shutil.copytree(REPO, copy)
-    return copy
+    return repo_copy(tmp_path)
 
 
 @pytest.fixture
 def studio(tmp_path: Path, root: Path) -> Iterator[TestClient]:
     settings = Settings(
-        repositories=(Repository(id="fixture", name="Fixture", root=root),),
+        repositories=(Repository(id="fixture", name="Fixture", root=root, writable=True),),
         state_dir=tmp_path / "state",
         rescan_seconds=0,
         workers=(WorkerEntry("win-1", hashlib.sha256(TOKEN.encode()).hexdigest()),),
@@ -83,7 +134,7 @@ def worker_for(studio: TestClient, tools: Tools) -> Worker:
     return Worker(cast(httpx.Client, client), "win-1", TOKEN, tools, poll_seconds=0.05)
 
 
-def submit(studio: TestClient, operation: str = "catalog.preview") -> Any:
+def submit(studio: TestClient, operation: str = "catalog.generate") -> Any:
     return studio.post("/api/repositories/fixture/jobs", json={"operation": operation})
 
 
@@ -92,8 +143,8 @@ def test_missing_worker_names_the_tool(studio: TestClient) -> None:
     assert refused.status_code == 409
     assert "Windows worker with makecatalogs" in refused.json()["detail"]
     ops = {o["name"]: o for o in studio.get("/api/operations").json()}
-    assert not ops["catalog.preview"]["available"]
-    assert "makecatalogs" in ops["catalog.preview"]["needs"]
+    assert not ops["catalog.generate"]["available"]
+    assert "makecatalogs" in ops["catalog.generate"]["needs"]
     [entry] = studio.get("/api/workers").json()
     assert entry["id"] == "win-1" and not entry["online"]
 
@@ -107,7 +158,7 @@ def test_handshake_reports_tools_and_capabilities(studio: TestClient, tmp_path: 
     assert entry["online"] and entry["tools"]["makecatalogs"] == "9.9.9-test"
     assert entry["capabilities"] == ["catalog.generate"] and entry["platform"] == "Windows"
     ops = {o["name"]: o for o in studio.get("/api/operations").json()}
-    assert ops["catalog.preview"]["available"] and ops["catalog.preview"]["needs"] is None
+    assert ops["catalog.generate"]["available"] and ops["catalog.generate"]["needs"] is None
 
 
 def test_a_worker_cannot_claim_capabilities_without_their_tools(studio: TestClient) -> None:
@@ -137,7 +188,7 @@ def test_wrong_token_or_id_is_refused(studio: TestClient) -> None:
 
 def wait_for(studio: TestClient, job_id: str, status: str) -> dict[str, Any]:
     job: dict[str, Any] = {}
-    for _ in range(200):
+    for _ in range(400):
         job = studio.get(f"/api/repositories/fixture/jobs/{job_id}").json()
         if job["status"] == status:
             return job
@@ -154,12 +205,16 @@ def test_a_job_runs_on_the_worker_and_returns_hashed_artifacts(
     job_id = submit(studio).json()["id"]
     assert worker.run_once()
     job = wait_for(studio, job_id, "succeeded")
-    [artifact] = job["result"]["artifacts"]
-    assert artifact["path"] == "catalogs/all"
+    artifact = job["result"]["artifacts"][0]
+    assert [a["path"] for a in job["result"]["artifacts"]] == [
+        "catalogs/All.yaml",
+        "catalogs/production.yaml",
+        "catalogs/testing.yaml",
+    ]
     assert job["result"]["tool_version"] == "9.9.9-test" and job["result"]["worker"] == "win-1"
-    body = studio.get(f"/api/repositories/fixture/jobs/{job_id}/artifacts/catalogs/all")
+    body = studio.get(f"/api/repositories/fixture/jobs/{job_id}/artifacts/catalogs/All.yaml")
     assert hashlib.sha256(body.content).hexdigest() == artifact["sha256"]
-    assert b"pkgsinfo/apps/creative/ExampleEditor-2.10.yaml" in body.content
+    assert b"name: ExampleEditor" in body.content
     assert not worker.run_once()
 
 
@@ -178,8 +233,7 @@ def test_the_tool_does_not_inherit_the_worker_environment(
 
 @posix_only
 def test_tool_failures_are_reported(studio: TestClient, tmp_path: Path) -> None:
-    failing = tool(tmp_path, FAKE_TOOL.replace('[ -n "$FAKE_FAIL" ]', "true"))
-    worker = worker_for(studio, Tools.probe({"makecatalogs": failing}))
+    worker = worker_for(studio, only(tmp_path, FAILING_TOOL))
     worker.hello()
     job_id = submit(studio).json()["id"]
     assert worker.run_once()
@@ -225,7 +279,7 @@ def test_artifacts_must_match_their_hash(studio: TestClient, tmp_path: Path) -> 
     claimed = worker.http.post("/api/worker/claim").json()
     assert claimed["id"] == job_id
     bad = worker.http.put(
-        f"/api/worker/jobs/{job_id}/artifacts/catalogs/all",
+        f"/api/worker/jobs/{job_id}/artifacts/catalogs/All.yaml",
         content=b"data",
         headers={"X-Content-SHA256": "0" * 64},
     )
@@ -233,7 +287,7 @@ def test_artifacts_must_match_their_hash(studio: TestClient, tmp_path: Path) -> 
     missing = worker.http.post(
         f"/api/worker/jobs/{job_id}/complete",
         json={
-            "artifacts": [{"path": "catalogs/all", "sha256": "0" * 64, "size": 4}],
+            "artifacts": [{"path": "catalogs/All.yaml", "sha256": "0" * 64, "size": 4}],
             "tool_version": "x",
         },
     )
@@ -282,11 +336,8 @@ def test_staging_refuses_unexpected_inputs(tmp_path: Path, name: str, kind: byte
     assert not (tmp_path.parent / "evil").exists()
 
 
-@pytest.mark.skipif(not REAL_MAKECATALOGS.is_file(), reason="needs Cimian's makecatalogs")
-def test_real_makecatalogs_on_windows(studio: TestClient, root: Path) -> None:
-    # makecatalogs 2.0 exits 1 on any unparsable pkgsinfo, so drop the fixture's broken ones.
-    shutil.rmtree(root / "pkgsinfo" / "invalid")
-    studio.post("/api/repositories/fixture/rescan").raise_for_status()
+@windows_only
+def test_real_makecatalogs_on_windows(studio: TestClient) -> None:
     tools = Tools.probe()
     assert "makecatalogs" in tools.versions
     worker = worker_for(studio, tools)
@@ -295,9 +346,10 @@ def test_real_makecatalogs_on_windows(studio: TestClient, root: Path) -> None:
     assert worker.run_once()
     job = wait_for(studio, job_id, "succeeded")
     paths = {a["path"] for a in job["result"]["artifacts"]}
-    assert "catalogs/All.yaml" in paths
-    body = studio.get(f"/api/repositories/fixture/jobs/{job_id}/artifacts/catalogs/All.yaml")
-    assert b"ExampleEditor" in body.content
+    assert {"catalogs/All.yaml", "catalogs/testing.yaml"} <= paths
+    url = f"/api/repositories/fixture/jobs/{job_id}/artifacts/catalogs/All.yaml"
+    names = {item["name"] for item in catalogs.canonical(studio.get(url).content)}
+    assert "ExampleEditor" in names
 
 
 def test_worker_token_prints_a_config_entry_matching_the_token() -> None:
