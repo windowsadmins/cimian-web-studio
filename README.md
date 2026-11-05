@@ -44,6 +44,16 @@ and an optional Windows worker for Cimian's Windows-only tools. Deployment,
 framework, identity provider, and licensing choices remain open. No cloud
 resources have been provisioned.
 
+## Saving
+
+A repository is read-only in the studio unless its entry in the config file
+says `writable = true`. Editors then save their drafts into it; every file in a
+draft is written or none is, and a draft whose files changed since it was made
+(by another person, AutoPkg, or `cimiimport`) is refused instead of
+overwriting that change. If clients read the folder directly, mark it
+`live = true`: the studio then asks for an explicit confirmation before each
+save, because the change reaches clients at once.
+
 ## Sign-in
 
 Without an `[auth]` table the studio is single-user and answers only on this

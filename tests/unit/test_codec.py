@@ -153,3 +153,12 @@ def test_block_lists_are_replaced_in_place() -> None:
     assert result.raw == b"catalogs:\n  - testing   # first\n  - staging\n\nrequires:\n  - x\n"
     shorter = edit(doc, [Set(("catalogs",), ["testing"])])
     assert shorter.raw == b"catalogs:\n  - testing   # first\n\nrequires:\n  - x\n"
+
+
+def test_changes_that_do_not_fit_are_codec_errors() -> None:
+    from cimian_web_studio.codec import CodecError
+
+    doc = load(b"name: x\nlist: [a]\n")
+    for change in (Append(("name",), "y"), Set(("missing", "deeper"), 1), Set(("list", 5), "z")):
+        with pytest.raises(CodecError, match="does not fit"):
+            edit(doc, [change])
