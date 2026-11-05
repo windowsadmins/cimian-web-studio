@@ -18,6 +18,7 @@ repository YAML remains authoritative.
 
 ## Start here
 
+- [Build plan](docs/build-plan.md)
 - [Product plan and milestones](docs/plan.md)
 - [Architecture and compatibility boundaries](docs/architecture.md)
 - [Infrastructure options and deployment requirements](docs/infrastructure.md)
