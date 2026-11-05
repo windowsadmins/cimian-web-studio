@@ -115,3 +115,11 @@ def test_where_used_and_validation_routes(client: TestClient) -> None:
     assert {"parse-error", "missing-package", "include-cycle"} <= {
         i["code"] for i in report["issues"]
     }
+
+
+def test_conditions_route_explains_a_manifest(client: TestClient) -> None:
+    rules = client.get(
+        "/api/repositories/fixture/conditions/manifests/groups/design-lab.yaml"
+    ).json()
+    assert rules[0]["rule"] == "hostname contains 'LAB-' and architecture is 'arm64'"
+    assert rules[1]["unknown_facts"] == ["department"]
