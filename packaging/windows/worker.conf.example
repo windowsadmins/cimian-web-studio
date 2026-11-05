@@ -1,0 +1,3 @@
+# Copy to worker.conf. The token from `cwsctl worker token` goes in worker.token.
+url = "https://studio.example.org"
+id = "win-1"
