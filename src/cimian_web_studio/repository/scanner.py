@@ -26,7 +26,17 @@ class ScanResult:
 
 
 def _candidates(root: Path) -> list[tuple[str, str]]:
-    """(relative path, kind) for every metadata file, in a stable order."""
+    """(relative path, kind) for every metadata file, in a stable order.
+
+    Symlinked top-level folders are skipped and the walk does not follow
+    symlinked folders. Linked files are listed, then refused by
+    `read_contained` if they lead outside the root.
+
+    On Windows, creating symlinks needs Developer Mode or an administrator.
+    Directory junctions are not symlinks: `is_symlink()` misses them and
+    `os.walk` follows them, so their files are listed. `read_contained` still
+    refuses any that resolve outside the root.
+    """
     found: list[tuple[str, str]] = []
     for folder, kind in platform.KINDS.items():
         base = root / folder

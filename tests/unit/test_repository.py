@@ -1,6 +1,7 @@
 import hashlib
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,23 @@ from cimian_web_studio.repository.config import ConfigError, Repository, load_se
 from cimian_web_studio.repository.index import Index
 from cimian_web_studio.repository.paths import PathEscapeError, contained, normalize
 from cimian_web_studio.repository.scanner import scan
+
+
+def _can_symlink() -> bool:
+    """Windows creates symlinks only with Developer Mode or as an administrator."""
+    probe = Path(tempfile.mkdtemp())
+    try:
+        (probe / "link").symlink_to(probe / "target")
+    except OSError:
+        return False
+    finally:
+        shutil.rmtree(probe)
+    return True
+
+
+needs_symlinks = pytest.mark.skipif(
+    not _can_symlink(), reason="symlinks need Developer Mode or admin on Windows"
+)
 
 
 def snapshot(root: Path) -> dict[str, tuple[str, int]]:
@@ -91,6 +109,7 @@ def test_rescan_reads_only_changed_files(repo: Repository, index: Index) -> None
     assert index.get(repo.id, "manifests/groups/loop-b.yaml") is None
 
 
+@needs_symlinks
 def test_symlinks_out_of_the_repository_are_skipped(
     repo: Repository, index: Index, tmp_path: Path
 ) -> None:
@@ -122,7 +141,8 @@ def test_contained_paths_resolve(repo: Repository) -> None:
 
 def test_settings_load_from_toml(tmp_path: Path, repo: Repository) -> None:
     config = tmp_path / "studio.toml"
-    config.write_text(f'state_dir = "state"\n[[repositories]]\nid = "main"\npath = "{repo.root}"\n')
+    root = repo.root.as_posix()
+    config.write_text(f'state_dir = "state"\n[[repositories]]\nid = "main"\npath = "{root}"\n')
     settings = load_settings(config)
     assert settings.repository("main").root == repo.root
     assert settings.repository("main").writable is False
@@ -132,6 +152,7 @@ def test_settings_load_from_toml(tmp_path: Path, repo: Repository) -> None:
         load_settings(config)
 
 
+@needs_symlinks
 def test_reads_are_bounded_and_regular_files_only(repo: Repository, tmp_path: Path) -> None:
     from cimian_web_studio.repository.paths import read_contained
 
@@ -166,7 +187,7 @@ def test_allowed_hosts_always_include_local_names(tmp_path: Path, repo: Reposito
         'allowed_hosts = ["studio.example.org"]\n'
         '[auth]\nmode = "oidc"\nissuer = "https://id.example.org"\nclient_id = "studio"\n'
         'public_url = "https://studio.example.org"\n'
-        f'[[repositories]]\nid = "main"\npath = "{repo.root}"\n'
+        f'[[repositories]]\nid = "main"\npath = "{repo.root.as_posix()}"\n'
     )
     assert load_settings(config).allowed_hosts == ("localhost", "127.0.0.1", "studio.example.org")
     config.write_text('allowed_hosts = ["*"]\n')
