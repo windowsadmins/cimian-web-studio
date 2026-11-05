@@ -72,8 +72,26 @@ Administrator = ["Studio.Administrator"]
 Register `https://studio.example.org/auth/callback` as the redirect URI. Each
 person gets the highest role their claim values map to; people with none are
 refused unless you set `default_role`. Sessions live on the server, and every
-change must carry the session's CSRF token. While sign-in is on, `/mcp` refuses
-requests until MCP sign-in lands.
+change must carry the session's CSRF token.
+
+The command line signs in with the provider's device flow. Register a public
+client for it (`cli_client_id` in `[auth]`) with device sign-in enabled, then:
+
+```sh
+cwsctl login --url https://studio.example.org
+```
+
+After that, `search`, `where-used` and `validate` take `--url` (or the
+`CWSCTL_URL` variable) to ask the studio instead of reading a folder. The token
+is stored in `~/.config/cwsctl/credentials.json`, readable only by you;
+`cwsctl logout` revokes it.
+
+MCP clients send the same token as a bearer token to `/mcp`. Print it for a
+client's configuration with:
+
+```sh
+cwsctl token --url https://studio.example.org
+```
 
 ## Command line
 
