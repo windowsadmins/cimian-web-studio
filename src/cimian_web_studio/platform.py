@@ -47,11 +47,9 @@ def summarize(kind: str, data: Any) -> dict[str, Any]:
     }
     if kind == "pkginfo":
         installer = mapping.get("installer")
-        location = (
-            _text(cast(dict[str, Any], installer).get("location"))
-            if isinstance(installer, dict)
-            else None
-        )
+        installer_map = cast(dict[str, Any], installer) if isinstance(installer, dict) else {}
+        location = _text(installer_map.get("location"))
+        summary["installer_type"] = _text(installer_map.get("type"))
         summary["payload"] = _payload(location)
         uninstallers = mapping.get("uninstaller")
         extra = [

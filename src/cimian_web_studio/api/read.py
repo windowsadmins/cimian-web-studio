@@ -129,13 +129,21 @@ def list_packages(
 
 
 def _package(name: str, objects: list[IndexedObject]) -> Package:
-    newest = objects[-1]
+    # The newest version that sets a field wins, so one sparse copy does not hide it.
+    display_name = next((o.display_name for o in reversed(objects) if o.display_name), None)
+    category = next((o.category for o in reversed(objects) if o.category), None)
     return Package(
         name=name,
-        display_name=newest.display_name,
-        category=newest.category,
+        display_name=display_name,
+        category=category,
         versions=[
-            PackageVersion(version=o.version, path=o.path, catalogs=o.catalogs, status=o.status)
+            PackageVersion(
+                version=o.version,
+                path=o.path,
+                catalogs=o.catalogs,
+                status=o.status,
+                installer_type=o.summary.get("installer_type"),
+            )
             for o in objects
         ],
     )

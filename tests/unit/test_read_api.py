@@ -123,3 +123,8 @@ def test_conditions_route_explains_a_manifest(client: TestClient) -> None:
     ).json()
     assert rules[0]["rule"] == "hostname contains 'LAB-' and architecture is 'arm64'"
     assert rules[1]["unknown_facts"] == ["department"]
+
+
+def test_package_fields_come_from_the_newest_version_that_sets_them(client: TestClient) -> None:
+    browser = client.get("/api/repositories/fixture/packages/ExampleBrowser").json()
+    assert browser["category"] == "Browsers"
