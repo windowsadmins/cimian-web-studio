@@ -124,7 +124,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/ExampleEditor-2.10.msi"
+                "apps/ExampleEditor-2.10.msi"
               ],
               [
                 "hash",
@@ -501,7 +501,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/browsers/ExampleBrowser-135.0.exe"
+                "apps/browsers/ExampleBrowser-135.0.exe"
               ],
               [
                 "hash",
@@ -583,7 +583,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/browsers/ExampleBrowser-136.0.exe"
+                "apps/browsers/ExampleBrowser-136.0.exe"
               ],
               [
                 "hash",
@@ -647,7 +647,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/browsers/ExampleBrowser-136.0.exe"
+                "apps/browsers/ExampleBrowser-136.0.exe"
               ],
               [
                 "hash",
@@ -716,7 +716,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/creative/ExampleEditor-2.10.msi"
+                "apps/creative/ExampleEditor-2.10.msi"
               ],
               [
                 "hash",
@@ -858,7 +858,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/creative/ExampleEditorPlugin-1.0.nupkg"
+                "apps/creative/ExampleEditorPlugin-1.0.nupkg"
               ],
               [
                 "hash",
@@ -905,7 +905,7 @@
               ],
               [
                 "location",
-                "pkgs/apps/creative/ExampleViewer-1.0.msix"
+                "apps/creative/ExampleViewer-1.0.msix"
               ],
               [
                 "hash",
@@ -960,7 +960,7 @@
               ],
               [
                 "location",
-                "pkgs/tools/ExampleRuntime-5.0.exe"
+                "tools/ExampleRuntime-5.0.exe"
               ],
               [
                 "hash",
@@ -1012,7 +1012,7 @@
               ],
               [
                 "location",
-                "pkgs/tools/ExampleScript-1.0.ps1"
+                "tools/ExampleScript-1.0.ps1"
               ]
             ]
           }

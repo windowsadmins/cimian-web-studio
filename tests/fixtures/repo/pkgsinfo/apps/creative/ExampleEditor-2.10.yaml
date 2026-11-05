@@ -15,7 +15,7 @@ requires:
 
 installer:
   type: msi
-  location: pkgs/apps/creative/ExampleEditor-2.10.msi
+  location: apps/creative/ExampleEditor-2.10.msi
   hash: 0000000000000000000000000000000000000000000000000000000000000000
   arguments:
     - /qn

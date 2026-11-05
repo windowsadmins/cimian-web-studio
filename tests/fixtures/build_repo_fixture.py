@@ -26,7 +26,7 @@ catalogs:
   - production
 installer:
   type: exe
-  location: pkgs/apps/browsers/ExampleBrowser-135.0.exe
+  location: apps/browsers/ExampleBrowser-135.0.exe
   hash: {HASH}
   arguments:
     - /S
@@ -45,7 +45,7 @@ catalogs:
   - testing
 installer:
   type: exe
-  location: pkgs/apps/browsers/ExampleBrowser-136.0.exe
+  location: apps/browsers/ExampleBrowser-136.0.exe
   hash: {HASH}
 installs:
   - type: file
@@ -59,7 +59,7 @@ version: "136.0"
 catalogs: [testing]
 installer:
   type: exe
-  location: pkgs/apps/browsers/ExampleBrowser-136.0.exe
+  location: apps/browsers/ExampleBrowser-136.0.exe
   hash: {HASH}
 notes: Duplicate on purpose.
 """,
@@ -82,7 +82,7 @@ requires:
 
 installer:
   type: msi
-  location: pkgs/apps/creative/ExampleEditor-2.10.msi
+  location: apps/creative/ExampleEditor-2.10.msi
   hash: {HASH}
   arguments:
     - /qn
@@ -120,7 +120,7 @@ update_for:
   - ExampleEditor
 installer:
   type: nupkg
-  location: pkgs/apps/creative/ExampleEditorPlugin-1.0.nupkg
+  location: apps/creative/ExampleEditorPlugin-1.0.nupkg
   hash: {HASH}
 """,
     "pkgsinfo/apps/creative/ExampleViewer-1.0.yaml": f"""\
@@ -130,7 +130,7 @@ category: Creative
 catalogs: [testing, production]
 installer:
   type: msix
-  location: pkgs/apps/creative/ExampleViewer-1.0.msix
+  location: apps/creative/ExampleViewer-1.0.msix
   hash: {HASH}
 """,
     "pkgsinfo/tools/ExampleRuntime-5.0.yaml": f"""\
@@ -142,7 +142,7 @@ catalogs:
   - production
 installer:
   type: exe
-  location: pkgs/tools/ExampleRuntime-5.0.exe
+  location: tools/ExampleRuntime-5.0.exe
   hash: {HASH}
   arguments: ["/quiet"]
 """,
@@ -154,7 +154,7 @@ catalogs:
   - testing
 installer:
   type: ps1
-  location: pkgs/tools/ExampleScript-1.0.ps1
+  location: tools/ExampleScript-1.0.ps1
 installcheck_script: |
   if (Test-Path "C:\\ProgramData\\Example\\done.txt") { exit 1 }
   exit 0

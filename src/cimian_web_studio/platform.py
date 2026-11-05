@@ -11,24 +11,115 @@ SUFFIXES: frozenset[str] | None = frozenset({".yaml", ".yml"})
 IGNORED_NAMES = frozenset({".DS_Store", ".gitkeep", "Thumbs.db"})
 
 
+# Manifest sections that name packages, and sections that name other manifests.
+ITEM_SECTIONS = (
+    "managed_installs",
+    "managed_uninstalls",
+    "managed_updates",
+    "optional_installs",
+    "featured_items",
+    "default_installs",
+    "managed_profiles",
+    "managed_apps",
+)
+INCLUDE_SECTIONS = ("included_manifests",)
+# pkginfo keys that name other packages.
+DEPENDENCY_KEYS = ("requires", "update_for")
+# Installer and uninstaller locations are relative to this folder, as in makecatalogs.
+PAYLOAD_FOLDER = "pkgs"
+
+
 def summarize(kind: str, data: Any) -> dict[str, Any]:
-    """The searchable fields of one parsed file."""
+    """The searchable fields of one parsed file, plus what it refers to."""
     if kind == "catalog":
         return {"items": len(cast(list[Any], data)) if isinstance(data, list) else 0}
     if not isinstance(data, dict):
         return {}
     mapping = cast(dict[str, Any], data)
-    catalogs = mapping.get("catalogs")
-    return {
+    summary: dict[str, Any] = {
         "name": _text(mapping.get("name")),
         "version": _text(mapping.get("version")),
         "display_name": _text(mapping.get("display_name")),
         "category": _text(mapping.get("category")),
-        "catalogs": [c for c in cast(list[Any], catalogs) if isinstance(c, str)]
-        if isinstance(catalogs, list)
-        else [],
+        "catalogs": _texts(mapping.get("catalogs")),
+        "refs": _references(kind, mapping),
     }
+    if kind == "pkginfo":
+        installer = mapping.get("installer")
+        location = (
+            _text(cast(dict[str, Any], installer).get("location"))
+            if isinstance(installer, dict)
+            else None
+        )
+        summary["payload"] = _payload(location)
+        uninstallers = mapping.get("uninstaller")
+        extra = [
+            _payload(_text(cast(dict[str, Any], u).get("location")))
+            for u in (cast(list[Any], uninstallers) if isinstance(uninstallers, list) else [])
+            if isinstance(u, dict)
+        ]
+        summary["payloads"] = [p for p in extra if p]
+    return summary
+
+
+def _payload(location: str | None) -> str | None:
+    """Cimian's rule: trim leading slashes, use forward slashes, prefix pkgs/.
+
+    Locations that are Windows paths on the client (`%ProgramFiles%\\...`) are not
+    repository payloads.
+    """
+    if not location or "%" in location or ":" in location:
+        return None
+    return f"{PAYLOAD_FOLDER}/" + location.lstrip("/\\").replace("\\", "/")
+
+
+def _condition(entry: dict[str, Any]) -> str | None:
+    condition = _text(entry.get("condition"))
+    if condition:
+        return condition
+    fact, operator, value = entry.get("fact"), entry.get("operator"), entry.get("value")
+    if isinstance(fact, str) and isinstance(operator, str):
+        return (
+            f"{fact} {operator} {value!r}"
+            if isinstance(value, str)
+            else f"{fact} {operator} {value}"
+        )
+    return None
+
+
+def _references(
+    kind: str, mapping: dict[str, Any], condition: str | None = None
+) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    if kind == "pkginfo":
+        for key in DEPENDENCY_KEYS:
+            refs += [
+                {"field": key, "target": t, "condition": None} for t in _texts(mapping.get(key))
+            ]
+        return refs
+    for key in (*INCLUDE_SECTIONS, *ITEM_SECTIONS):
+        refs += [
+            {"field": key, "target": t, "condition": condition} for t in _texts(mapping.get(key))
+        ]
+    items = mapping.get("conditional_items")
+    if isinstance(items, list):
+        for item in cast(list[Any], items):
+            if isinstance(item, dict):
+                entry = cast(dict[str, Any], item)
+                refs += _references(kind, entry, _condition(entry) or condition)
+    return refs
+
+
+def split_item(item: str) -> tuple[str, str | None]:
+    """Cimian manifest items name a package without a version."""
+    return item, None
 
 
 def _text(value: Any) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _texts(value: Any) -> list[str]:
+    return (
+        [v for v in cast(list[Any], value) if isinstance(v, str)] if isinstance(value, list) else []
+    )

@@ -4,5 +4,5 @@ category: Creative
 catalogs: [testing, production]
 installer:
   type: msix
-  location: pkgs/apps/creative/ExampleViewer-1.0.msix
+  location: apps/creative/ExampleViewer-1.0.msix
   hash: 0000000000000000000000000000000000000000000000000000000000000000
