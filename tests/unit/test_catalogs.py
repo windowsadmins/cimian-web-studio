@@ -358,7 +358,7 @@ def test_catalogs_view_shows_membership_and_what_is_out_of_date(
 
 def run_makecatalogs(repo: Path) -> None:
     command = [str(REAL_MAKECATALOGS), "--repo_path", str(repo), "--skip_payload_check"]
-    subprocess.run(command, check=True, capture_output=True)  # noqa: S603
+    subprocess.run(command, check=True, capture_output=True)
 
 
 @windows_only
