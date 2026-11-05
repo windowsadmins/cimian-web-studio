@@ -71,6 +71,18 @@ too, and `--json` prints a machine-readable report:
 cwsctl validate --repo /path/to/repo
 ```
 
+## MCP server
+
+The studio includes an MCP server with read-only tools: search_packages,
+get_pkginfo, get_manifest, where_used, explain_conditions and
+validate_repository, plus a studio://layout resource. `cwsctl serve` exposes it
+at `/mcp`. To give an assistant on this machine direct access to a repository
+folder over stdio, run:
+
+```sh
+cwsctl mcp --repo /path/to/repo
+```
+
 ## Development
 
 The backend is a Python 3.14 package managed with [uv](https://docs.astral.sh/uv/).
